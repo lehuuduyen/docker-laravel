@@ -1,0 +1,75 @@
+version: '3'
+services:
+
+  #Laravel App
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hakase-labs/laravel
+    container_name: app
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: app
+      SERVICE_TAGS: dev
+    working_dir: /var/www/html
+    volumes:
+      - ./web:/var/www/html
+    networks:
+      - mynet
+
+  #Nginx Service
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./web/:/var/www/html
+      - ./nginx/:/etc/nginx/conf.d/
+    networks:
+      - mynet
+
+  #MySQL Service
+  db:
+    image: mysql:5.7
+    container_name: mysql
+    ports:
+      - 33061:3306
+    restart: always
+    volumes:
+      - ./dbdata:/var/lib/mysql
+      # Mở command khi cần up lên host
+      # - ./db/run-update-db.sh:/run-update-db.sh
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      # MYSQL_USER: root
+      MYSQL_PASSWORD: root
+      MYSQL_DATABASE: laravel
+    networks:
+      - mynet
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: phpmyadmin
+    ports:
+      - 880:80
+    # volumes:
+      # - ./phpmyadmin/custom.ini:/usr/local/etc/php/conf.d/custom.ini
+    environment:
+      - PMA_ARBITRARY=1
+      - PMA_HOST=db
+    depends_on:
+      - db
+
+#Docker Networks
+networks:
+  mynet:
+    driver: bridge
+#Volumes
+volumes:
+  mysqldata:
+    driver: local
