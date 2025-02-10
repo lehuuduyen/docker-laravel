@@ -1,0 +1,4 @@
+node_modules
+api_zalo_shop/.git
+vendor
+*.log

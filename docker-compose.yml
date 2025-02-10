@@ -1,75 +1,87 @@
-version: '3'
+version: '3.8'
+
 services:
-
-  #Laravel App
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: hakase-labs/laravel
-    container_name: app
-    restart: unless-stopped
-    tty: true
-    environment:
-      SERVICE_NAME: app
-      SERVICE_TAGS: dev
-    working_dir: /var/www/html
-    volumes:
-      - ./web:/var/www/html
-    networks:
-      - mynet
-
-  #Nginx Service
   nginx:
-    image: nginx:alpine
-    container_name: nginx
-    restart: unless-stopped
-    tty: true
+    image: nginx:latest
+    container_name: nginx_server
     ports:
       - "80:80"
-      - "443:443"
     volumes:
-      - ./web/:/var/www/html
-      - ./nginx/:/etc/nginx/conf.d/
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./api_zalo_shop:/var/www/api_zalo_shop
+      - ./trasua-wp:/var/www/trasua-wp
+    depends_on:
+      - laravel
+      - wordpress
     networks:
-      - mynet
+      - app_network
+    extra_hosts:
+      - "api.trasua.local:127.0.0.1"
+      - "trasua.local:127.0.0.1"
 
-  #MySQL Service
-  db:
+  mysql:
     image: mysql:5.7
-    container_name: mysql
-    ports:
-      - 33061:3306
+    container_name: mysql_db
     restart: always
-    volumes:
-      - ./dbdata:/var/lib/mysql
-      # Mở command khi cần up lên host
-      # - ./db/run-update-db.sh:/run-update-db.sh
     environment:
       MYSQL_ROOT_PASSWORD: root
-      # MYSQL_USER: root
-      MYSQL_PASSWORD: root
-      MYSQL_DATABASE: laravel
-    networks:
-      - mynet
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin:latest
-    container_name: phpmyadmin
+      MYSQL_DATABASE: trasua
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
     ports:
-      - 880:80
-    # volumes:
-      # - ./phpmyadmin/custom.ini:/usr/local/etc/php/conf.d/custom.ini
-    environment:
-      - PMA_ARBITRARY=1
-      - PMA_HOST=db
-    depends_on:
-      - db
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app_network
 
-#Docker Networks
-networks:
-  mynet:
-    driver: bridge
-#Volumes
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      MYSQL_ROOT_PASSWORD: root
+    depends_on:
+      - mysql
+    networks:
+      - app_network
+
+  laravel:
+    build:
+      context: ./api_zalo_shop
+      dockerfile: Dockerfile
+    container_name: laravel_app
+    restart: always
+
+    volumes:
+      - ./api_zalo_shop:/var/www/api_zalo_shop
+    depends_on:
+      - mysql
+    networks:
+      - app_network
+
+  wordpress:
+    image: wordpress:php8.2-fpm
+    container_name: wordpress_site
+    restart: always
+    environment:
+      WORDPRESS_DB_HOST: mysql
+      WORDPRESS_DB_USER: user
+      WORDPRESS_DB_PASSWORD: password
+      WORDPRESS_DB_NAME: trasua
+    volumes:
+      - ./trasua-wp:/var/www/trasua-wp
+    depends_on:
+      - mysql
+    networks:
+      - app_network
 volumes:
-  mysqldata:
-    driver: local
+  mysql_data:
+
+
+networks:
+  app_network:
+    driver: bridge
