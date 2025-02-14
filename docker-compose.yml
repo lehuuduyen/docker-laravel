@@ -20,7 +20,7 @@ services:
       - "trasua.local:127.0.0.1"
 
   mysql:
-    image: mysql:5.7
+    image: "mariadb:10.2"
     container_name: mysql_db
     restart: always
     environment:
@@ -31,7 +31,7 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - ./dbdata:/var/lib/mysql
     networks:
       - app_network
 
@@ -58,13 +58,17 @@ services:
 
     volumes:
       - ./api_zalo_shop:/var/www/api_zalo_shop
+      - ./php/local.ini:/usr/local/etc/php/php.ini
+
     depends_on:
       - mysql
     networks:
       - app_network
 
   wordpress:
-    image: wordpress:php8.2-fpm
+    build:
+      context: ./trasua-wp
+      dockerfile: Dockerfile    
     container_name: wordpress_site
     restart: always
     environment:
@@ -74,6 +78,7 @@ services:
       WORDPRESS_DB_NAME: trasua
     volumes:
       - ./trasua-wp:/var/www/trasua-wp
+      - ./php/local.ini:/usr/local/etc/php/php.ini
     depends_on:
       - mysql
     networks:
